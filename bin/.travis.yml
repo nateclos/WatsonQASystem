@@ -1,0 +1,11 @@
+language: java
+
+jdk:
+  - oraclejdk8
+
+branches:
+  only:
+    - master
+
+script:
+  - ${TRAVIS_BUILD_DIR}/runAllTests.sh
