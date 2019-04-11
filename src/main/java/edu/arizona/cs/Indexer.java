@@ -3,6 +3,7 @@ package edu.arizona.cs;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.Scanner;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.IndexWriter;
@@ -31,6 +32,8 @@ public class Indexer {
 	
 	public static void main(String[] args) throws IOException {
 		
-		Indexer i = new Indexer("enwiki-20140602-pages-articles.xml-0005.txt");
+		//Indexer i = new Indexer("enwiki-20140602-pages-articles.xml-0005.txt");
+		Scanner input = new Scanner(new File("enwiki-20140602-pages-articles.xml-0005.txt"));
+		
 	}
 }
