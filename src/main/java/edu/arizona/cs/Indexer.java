@@ -5,14 +5,25 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
+import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.RAMDirectory;
@@ -23,36 +34,44 @@ public class Indexer {
 	private StandardAnalyzer analyzer;
 	private String[] exclusions = new String[] {"[[File:", "[[Image:", "[[Media:"};
 	
-	public Indexer(String input_file) throws IOException {
+	public Indexer(File currDir) throws IOException {
 		
-		ClassLoader classLoader = getClass().getClassLoader();
-        File file = new File(classLoader.getResource(input_file).getFile());
-        Scanner s = new Scanner(file);
-        
-        this.analyzer = new StandardAnalyzer();
-        this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index.lucene"));
+		File oldIndex = new File("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index.lucene");
+		if(oldIndex.exists()) {
+			this.analyzer = new StandardAnalyzer();
+			this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index.lucene"));
+			return;
+		}
+		
+		this.analyzer = new StandardAnalyzer();
+        this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index2.lucene"));
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
         IndexWriter w = new IndexWriter(index, config);
         
-        while(s.hasNextLine()) {
-        		String curr = s.nextLine();
-        		if(curr.startsWith("[[") && !isMedia(curr)) {
-        			addNewDoc(w, s, curr);
-        			while(true) {
-        				if(curr.endsWith("]]")) {
-        					curr = s.nextLine();
-        					break;
-        				}
-        				curr = s.nextLine();
-        			}
-        		}
-        }
-        w.close();
-        index.close();
+		for(File name : currDir.listFiles()) {
+			System.out.println("Indexing " + name.getName());
+			if(!name.getName().startsWith("enwiki")) continue;
+			
+			ClassLoader classLoader = getClass().getClassLoader();
+	        File file = new File(classLoader.getResource(name.getName()).getFile());
+	        Scanner s = new Scanner(file);
+	        
+	        while(s.hasNextLine()) {
+	        		String curr = s.nextLine();
+	        		if(curr.startsWith("[[") && !isMedia(curr)) {
+	        			Scanner newS = s;
+	        			addNewDoc(w, newS
+	        					, curr);
+	        		}
+	        }
+	        break;
+	        
+		}
+		w.close();
 	}
+		
 	
-	private void addNewDoc(IndexWriter w, Scanner s, String curr) {
-		System.out.println(curr);
+	private void addNewDoc(IndexWriter w, Scanner s, String curr) throws IOException {
 		curr = curr.replace("[", "");
 		String title = curr;
 		if(!curr.endsWith("]]")) {
@@ -65,19 +84,25 @@ public class Indexer {
 		} else {
 			title = title.replace("]]", "");
 		}
-		System.out.println(title);
 		Document newDoc = new Document();
+		newDoc.add(new StringField("title", title, Field.Store.YES));
 		
 		s.nextLine();
 		curr = s.nextLine();
-		String document = "";
-		
 		if(curr.startsWith("CATEGORIES:")) {
 			addCategories(newDoc, curr, s);
 		} else {
-			System.out.println("NO CATEGORIES");
+			newDoc.add(new TextField("categories", "NO CATEGORIES", Field.Store.YES));
 		}
-		
+		curr = s.nextLine();
+		String document = "";
+		while(!curr.startsWith("[[")) {
+			document += curr;
+			curr = s.nextLine();
+		}
+		newDoc.add(new TextField("document", document, Field.Store.YES));
+		System.out.println("Adding document with title: " + title);
+		w.addDocument(newDoc);
 	}
 	
 	private void addCategories(Document newDoc, String categories, Scanner s) {
@@ -88,8 +113,7 @@ public class Indexer {
 			categories += curr;
 			curr = s.nextLine();
 		}
-		System.out.println(categories);
-		//newDoc.add(new TextField("categories", categories, Field.Store.YES));
+		newDoc.add(new TextField("categories", categories, Field.Store.YES));
 	}
 		
 	private boolean isMedia(String line) {
@@ -100,9 +124,31 @@ public class Indexer {
 		return false;
 	}
 	
-	public static void main(String[] args) throws IOException {
+	public void queryIndex(String query) throws ParseException, IOException {
 		
-		Indexer i = new Indexer("enwiki-20140602-pages-articles.xml-0005.txt");
+		Query q = new QueryParser("categories", this.analyzer).parse(query);
+		int hitNum = 10;
+		IndexReader reader = DirectoryReader.open(index);
+		IndexSearcher searcher = new IndexSearcher(reader);
+		MultiFieldQueryParser queryParser = new MultiFieldQueryParser(new String[] {"categories", "document"},analyzer);
+		//TopDocs docs = searcher.search(queryParser.parse(query), hitNum);
+		TopDocs docs = searcher.search(q, hitNum);
+		ScoreDoc[] hits = docs.scoreDocs;
 		
+		System.out.println("Found " + hits.length + " hits.");
+		for(int i=0;i<hits.length;++i) {
+		    int docId = hits[i].doc;
+		    float score = hits[i].score;
+		    Document d = searcher.doc(docId);
+		    	System.out.println((i + 1) + ". " + d.get("title") + " " + score + " " + d.get("categories"));
+		}
+	}
+	
+	public static void main(String[] args) throws IOException, ParseException {
+		
+		File currDir = new File("src/main/resources");
+		Indexer i = new Indexer(currDir);
+		i.queryIndex("HISTORICAL QUOTES");
+		i.index.close();
 	}
 }
