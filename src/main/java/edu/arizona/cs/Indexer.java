@@ -36,10 +36,10 @@ public class Indexer {
 	
 	public Indexer(File currDir) throws IOException {
 		
-		File oldIndex = new File("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index.lucene");
+		File oldIndex = new File("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index2.lucene");
 		if(oldIndex.exists()) {
 			this.analyzer = new StandardAnalyzer();
-			this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index.lucene"));
+			this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index2.lucene"));
 			return;
 		}
 		
@@ -49,29 +49,26 @@ public class Indexer {
         IndexWriter w = new IndexWriter(index, config);
         
 		for(File name : currDir.listFiles()) {
-			System.out.println("Indexing " + name.getName());
+			System.out.println("\nIndexing " + name.getName() + "\n");
 			if(!name.getName().startsWith("enwiki")) continue;
 			
 			ClassLoader classLoader = getClass().getClassLoader();
 	        File file = new File(classLoader.getResource(name.getName()).getFile());
 	        Scanner s = new Scanner(file);
-	        
+	        String curr = s.nextLine();
+    			if(curr.startsWith("[[") && !isMedia(curr))
+    				curr = addNewDoc(w, s, curr);
 	        while(s.hasNextLine()) {
-	        		String curr = s.nextLine();
-	        		if(curr.startsWith("[[") && !isMedia(curr)) {
-	        			Scanner newS = s;
-	        			addNewDoc(w, newS
-	        					, curr);
-	        		}
+	        		curr = addNewDoc(w,s,curr);
 	        }
-	        break;
+	        //break;
 	        
 		}
 		w.close();
 	}
 		
 	
-	private void addNewDoc(IndexWriter w, Scanner s, String curr) throws IOException {
+	private String addNewDoc(IndexWriter w, Scanner s, String curr) throws IOException {
 		curr = curr.replace("[", "");
 		String title = curr;
 		if(!curr.endsWith("]]")) {
@@ -96,13 +93,24 @@ public class Indexer {
 		}
 		curr = s.nextLine();
 		String document = "";
-		while(!curr.startsWith("[[")) {
+		while(!isTitle(curr) && s.hasNextLine()) {
 			document += curr;
 			curr = s.nextLine();
 		}
 		newDoc.add(new TextField("document", document, Field.Store.YES));
-		System.out.println("Adding document with title: " + title);
-		w.addDocument(newDoc);
+		//System.out.println("Adding document with title: " + title);
+		//System.out.println("CATEGORIES: " + newDoc.get("categories"));
+		//System.out.println("DOCUMENT: " + document + "\n");
+		try {
+			w.addDocument(newDoc);
+		} catch(IllegalArgumentException e) {
+			System.out.println(newDoc.get("title"));
+			System.out.println(newDoc.get("categories"));
+			System.out.println(newDoc.get("document"));
+			System.exit(1);
+		}
+		
+		return curr;
 	}
 	
 	private void addCategories(Document newDoc, String categories, Scanner s) {
@@ -124,9 +132,17 @@ public class Indexer {
 		return false;
 	}
 	
+	private boolean isTitle(String line) {
+		
+		if(line.startsWith("[[") && (!line.startsWith("[[File") && !line.startsWith("[[Image:") && !line.startsWith("[[Media:"))) {
+			return true;
+		}
+		return false;
+	}
+	
 	public void queryIndex(String query) throws ParseException, IOException {
 		
-		Query q = new QueryParser("categories", this.analyzer).parse(query);
+		Query q = new QueryParser("document", this.analyzer).parse(query);
 		int hitNum = 10;
 		IndexReader reader = DirectoryReader.open(index);
 		IndexSearcher searcher = new IndexSearcher(reader);
@@ -140,7 +156,7 @@ public class Indexer {
 		    int docId = hits[i].doc;
 		    float score = hits[i].score;
 		    Document d = searcher.doc(docId);
-		    	System.out.println((i + 1) + ". " + d.get("title") + " " + score + " " + d.get("categories"));
+		    	System.out.println((i + 1) + ". " + d.get("title") + " " + score);
 		}
 	}
 	
@@ -148,7 +164,7 @@ public class Indexer {
 		
 		File currDir = new File("src/main/resources");
 		Indexer i = new Indexer(currDir);
-		i.queryIndex("HISTORICAL QUOTES");
+		i.queryIndex("GOLDEN GLOBE WINNERS In 2009: Joker on film");
 		i.index.close();
 	}
 }
