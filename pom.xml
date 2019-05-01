@@ -13,12 +13,19 @@
 
 
   <dependencies>
+
     <dependency>
-      <groupId>edu.stanford.nlp</groupId>
-      <artifactId>stanford-corenlp</artifactId>
-      <version>3.9.2</version>
-      <classifier>models</classifier>
-  </dependency>
+<groupId>edu.stanford.nlp</groupId>
+<artifactId>stanford-corenlp</artifactId>
+<version>3.9.2</version>
+</dependency>
+<dependency>
+<groupId>edu.stanford.nlp</groupId>
+<artifactId>stanford-corenlp</artifactId>
+<version>3.9.2</version>
+<classifier>models</classifier>
+</dependency>
+    
     <dependency>
       <groupId>org.apache.lucene</groupId>
       <artifactId>lucene-core</artifactId>
@@ -35,12 +42,16 @@
       <version>7.7.1</version>
     </dependency>
 
-    <!--<dependency>-->
-      <!--<groupId>junit</groupId>-->
-      <!--<artifactId>junit</artifactId>-->
-      <!--<version>3.8.1</version>-->
-      <!--<scope>test</scope>-->
-    <!--</dependency>-->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.7.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
+        <version>1.7.5</version>
+    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -49,11 +60,7 @@
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>edu.stanford.nlp</groupId>
-      <artifactId>stanford-corenlp</artifactId>
-      <version>3.9.2</version>
-    </dependency>
+
 
   </dependencies>
 

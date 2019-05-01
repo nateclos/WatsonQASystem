@@ -7,9 +7,13 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
+import org.apache.log4j.BasicConfigurator;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -31,24 +35,26 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.RAMDirectory;
 
+import edu.stanford.nlp.simple.Sentence;
+
 
 public class Indexer {
 	
 	private FSDirectory index;
-	private StandardAnalyzer analyzer;
+	private Analyzer analyzer;
 	private String[] exclusions = new String[] {"[[File:", "[[Image:", "[[Media:"};
 	
 	public Indexer(File currDir) throws IOException {
 		
-		File oldIndex = new File("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index.lucene");
+		File oldIndex = new File("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index-CoreNLP.lucene");
 		if(oldIndex.exists()) {
-			this.analyzer = new StandardAnalyzer();
-			this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index.lucene"));
+			this.analyzer = new WhitespaceAnalyzer();
+			this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index-CoreNLP.lucene"));
 			return;
 		}
 		
-		this.analyzer = new StandardAnalyzer();
-        this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index.lucene"));
+		this.analyzer = new WhitespaceAnalyzer();
+        this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index-CoreNLP.lucene"));
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
         IndexWriter w = new IndexWriter(index, config);
         
@@ -101,6 +107,7 @@ public class Indexer {
 			if(!curr.isEmpty()) document += '\n';
 			curr = s.nextLine();
 		}
+		document = getLemmaStr(document);
 		newDoc.add(new TextField("document", document, Field.Store.YES));
 		try {
 			w.addDocument(newDoc);
@@ -122,7 +129,24 @@ public class Indexer {
 			categories += curr;
 			curr = s.nextLine();
 		}
+		categories = getLemmaStr(categories);
 		newDoc.add(new TextField("categories", categories, Field.Store.YES));
+	}
+	
+	private String getLemmaStr(String str) {
+		
+		String resStr = "";
+		edu.stanford.nlp.simple.Document d = new edu.stanford.nlp.simple.Document(str);
+		
+		List<String> lemmas;
+		for(Sentence curr : d.sentences()) {
+			lemmas = curr.lemmas();
+			for(String lemma : lemmas) {
+				resStr += lemma + " ";
+			}
+		}
+		
+		return resStr;
 	}
 		
 	private boolean isMedia(String line) {
@@ -189,11 +213,11 @@ public class Indexer {
 	}
 	
 	public static void main(String[] args) throws IOException, ParseException {
-		
+		//BasicConfigurator b = new BasicConfigurator(); 
+		BasicConfigurator.configure();
 		File currDir = new File("src/main/resources");
 		Indexer i = new Indexer(currDir);
 		i.testIndex();
 		i.index.close();
-		edu.stanford.nlp.simple.Document d = new edu.stanford.nlp.simple.Document("test");
 	}
 }
