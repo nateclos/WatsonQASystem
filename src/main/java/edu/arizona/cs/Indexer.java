@@ -190,6 +190,20 @@ public float queryIndex(String query, String answer) throws ParseException, IOEx
 		System.out.println("MRR: " + total);
 	}
 	
+private float measureMRR(ScoreDoc[] hits, IndexSearcher searcher, String answer) throws IOException {
+		
+		int pos = 0;
+		for(int i = 0; i < hits.length; i++) {
+			int docId = hits[i].doc;
+			Document d = searcher.doc(docId);
+			if(d.get("title").equals(answer)) {
+				pos = i + 1;
+			}
+		}
+		if(pos == 0) return 0.0f;
+		return (float) 1/pos;
+	}
+	
 	public static void main(String[] args) throws IOException, ParseException {
 		
 		File currDir = new File("src/main/resources");
