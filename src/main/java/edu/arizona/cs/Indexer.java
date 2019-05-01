@@ -1,8 +1,10 @@
 package edu.arizona.cs;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
@@ -21,12 +23,14 @@ import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.RAMDirectory;
+
 
 public class Indexer {
 	
@@ -36,15 +40,15 @@ public class Indexer {
 	
 	public Indexer(File currDir) throws IOException {
 		
-		File oldIndex = new File("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index2.lucene");
+		File oldIndex = new File("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index.lucene");
 		if(oldIndex.exists()) {
 			this.analyzer = new StandardAnalyzer();
-			this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index2.lucene"));
+			this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index.lucene"));
 			return;
 		}
 		
 		this.analyzer = new StandardAnalyzer();
-        this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index2.lucene"));
+        this.index = FSDirectory.open(Paths.get("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/index.lucene"));
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
         IndexWriter w = new IndexWriter(index, config);
         
@@ -61,7 +65,6 @@ public class Indexer {
 	        while(s.hasNextLine()) {
 	        		curr = addNewDoc(w,s,curr);
 	        }
-	        //break;
 	        
 		}
 		w.close();
@@ -95,12 +98,10 @@ public class Indexer {
 		String document = "";
 		while(!isTitle(curr) && s.hasNextLine()) {
 			document += curr;
+			if(!curr.isEmpty()) document += '\n';
 			curr = s.nextLine();
 		}
 		newDoc.add(new TextField("document", document, Field.Store.YES));
-		//System.out.println("Adding document with title: " + title);
-		//System.out.println("CATEGORIES: " + newDoc.get("categories"));
-		//System.out.println("DOCUMENT: " + document + "\n");
 		try {
 			w.addDocument(newDoc);
 		} catch(IllegalArgumentException e) {
@@ -140,31 +141,59 @@ public class Indexer {
 		return false;
 	}
 	
-	public void queryIndex(String query) throws ParseException, IOException {
+	public String queryIndex(String query) throws ParseException, IOException {
 		
-		Query q = new QueryParser("document", this.analyzer).parse(query);
+		QueryParser parser = new QueryParser("document", this.analyzer);
+		Query q = parser.parse(QueryParser.escape(query));
 		int hitNum = 10;
 		IndexReader reader = DirectoryReader.open(index);
 		IndexSearcher searcher = new IndexSearcher(reader);
+		
+		/*
 		MultiFieldQueryParser queryParser = new MultiFieldQueryParser(new String[] {"categories", "document"},analyzer);
-		//TopDocs docs = searcher.search(queryParser.parse(query), hitNum);
+		Query q = parser.parse(MultiFieldQueryParser.escape(query));
+		TopDocs docs = searcher.search(q, hitNum);
+		*/
+		
 		TopDocs docs = searcher.search(q, hitNum);
 		ScoreDoc[] hits = docs.scoreDocs;
+		if(hits.length == 0) return "NONE";
+		int docId = hits[0].doc;
+		Document d = searcher.doc(docId);
 		
-		System.out.println("Found " + hits.length + " hits.");
-		for(int i=0;i<hits.length;++i) {
-		    int docId = hits[i].doc;
-		    float score = hits[i].score;
-		    Document d = searcher.doc(docId);
-		    	System.out.println((i + 1) + ". " + d.get("title") + " " + score);
+		return d.get("title");
+	}
+	
+	public void testIndex() throws ParseException, IOException {
+		
+		File questions = new File("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/questions.txt");
+		Scanner s = new Scanner(questions);
+		int total = 0, overall = 0;
+		while(s.hasNextLine()) {
+			
+			String category = s.nextLine();
+			String clue = s.nextLine();
+			String answer = s.nextLine();
+			s.nextLine();
+			System.out.println("Attempting query: " + clue);
+			if(clue.contains("\"")) {
+				String q = "";
+				String[] clueArr = clue.split("\"");
+				q += '"' + clueArr[1].trim() + '"' + "~1";
+				clue += " " + q;
+			}
+			String result = queryIndex(category + " " + clue);
+			if(result.equals(answer)) total++;
 		}
+		System.out.println(total + "% effectiveness");
 	}
 	
 	public static void main(String[] args) throws IOException, ParseException {
 		
 		File currDir = new File("src/main/resources");
 		Indexer i = new Indexer(currDir);
-		i.queryIndex("GOLDEN GLOBE WINNERS In 2009: Joker on film");
+		i.testIndex();
 		i.index.close();
+		edu.stanford.nlp.simple.Document d = new edu.stanford.nlp.simple.Document("test");
 	}
 }
