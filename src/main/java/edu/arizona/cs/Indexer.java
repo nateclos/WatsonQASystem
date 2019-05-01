@@ -206,6 +206,8 @@ public class Indexer {
 				q += '"' + clueArr[1].trim() + '"' + "~1";
 				clue += " " + q;
 			}
+			category = getLemmaStr(category);
+			clue = getLemmaStr(clue);
 			String result = queryIndex(category + " " + clue);
 			if(result.equals(answer)) total++;
 		}
@@ -213,7 +215,6 @@ public class Indexer {
 	}
 	
 	public static void main(String[] args) throws IOException, ParseException {
-		//BasicConfigurator b = new BasicConfigurator(); 
 		BasicConfigurator.configure();
 		File currDir = new File("src/main/resources");
 		Indexer i = new Indexer(currDir);
