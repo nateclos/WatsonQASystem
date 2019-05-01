@@ -142,34 +142,31 @@ public class Indexer {
 		return false;
 	}
 	
-	public String queryIndex(String query) throws ParseException, IOException {
+public float queryIndex(String query, String answer) throws ParseException, IOException {
 		
 		QueryParser parser = new QueryParser("document", this.analyzer);
 		Query q = parser.parse(QueryParser.escape(query));
-		int hitNum = 10;
+		int hitNum = 100;
 		IndexReader reader = DirectoryReader.open(index);
 		IndexSearcher searcher = new IndexSearcher(reader);
 		
-		/*
-		MultiFieldQueryParser queryParser = new MultiFieldQueryParser(new String[] {"categories", "document"},analyzer);
-		Query q = parser.parse(MultiFieldQueryParser.escape(query));
-		TopDocs docs = searcher.search(q, hitNum);
-		*/
-		
+		//MultiFieldQueryParser queryParser = new MultiFieldQueryParser(new String[] {"categories", "document"},analyzer);
+		//Query q = parser.parse(MultiFieldQueryParser.escape(query));
+		//TopDocs docs = searcher.search(q, hitNum);
+		searcher.setSimilarity(new BM25Similarity(0.6f, 0.60f));
 		TopDocs docs = searcher.search(q, hitNum);
 		ScoreDoc[] hits = docs.scoreDocs;
-		if(hits.length == 0) return "NONE";
-		int docId = hits[0].doc;
-		Document d = searcher.doc(docId);
+		float pos = measureMRR(hits, searcher, answer);
 		
-		return d.get("title");
+		return pos;
 	}
 	
 	public void testIndex() throws ParseException, IOException {
 		
 		File questions = new File("/Users/nateclos/Documents/cs483/WatsonQASystem/src/main/resources/questions.txt");
 		Scanner s = new Scanner(questions);
-		int total = 0, overall = 0;
+		float total = 0; 
+		int overall = 0;
 		while(s.hasNextLine()) {
 			
 			String category = s.nextLine();
@@ -177,16 +174,20 @@ public class Indexer {
 			String answer = s.nextLine();
 			s.nextLine();
 			System.out.println("Attempting query: " + clue);
+			// The following lines are what would allow a phrase query to be added to the query 
+			// in the event there are parentheses in the question.
+			/*
 			if(clue.contains("\"")) {
 				String q = "";
 				String[] clueArr = clue.split("\"");
 				q += '"' + clueArr[1].trim() + '"' + "~1";
 				clue += " " + q;
 			}
-			String result = queryIndex(category + " " + clue);
-			if(result.equals(answer)) total++;
+			*/
+			float result = queryIndex(category + " " + clue, answer);
+			total += result;
 		}
-		System.out.println(total + "% effectiveness");
+		System.out.println("MRR: " + total);
 	}
 	
 	public static void main(String[] args) throws IOException, ParseException {
