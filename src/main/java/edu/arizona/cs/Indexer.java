@@ -31,6 +31,7 @@ import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.RAMDirectory;
@@ -173,12 +174,10 @@ public class Indexer {
 		IndexReader reader = DirectoryReader.open(index);
 		IndexSearcher searcher = new IndexSearcher(reader);
 		
-		/*
-		MultiFieldQueryParser queryParser = new MultiFieldQueryParser(new String[] {"categories", "document"},analyzer);
-		Query q = parser.parse(MultiFieldQueryParser.escape(query));
-		TopDocs docs = searcher.search(q, hitNum);
-		*/
-		
+		//MultiFieldQueryParser queryParser = new MultiFieldQueryParser(new String[] {"categories", "document"},analyzer);
+		//Query q = parser.parse(MultiFieldQueryParser.escape(query));
+		//TopDocs docs = searcher.search(q, hitNum);
+		searcher.setSimilarity(new BM25Similarity(0.6f, 0.60f));
 		TopDocs docs = searcher.search(q, hitNum);
 		ScoreDoc[] hits = docs.scoreDocs;
 		if(hits.length == 0) return "NONE";
@@ -200,12 +199,14 @@ public class Indexer {
 			String answer = s.nextLine();
 			s.nextLine();
 			System.out.println("Attempting query: " + clue);
+			/*
 			if(clue.contains("\"")) {
 				String q = "";
 				String[] clueArr = clue.split("\"");
 				q += '"' + clueArr[1].trim() + '"' + "~1";
 				clue += " " + q;
 			}
+			*/
 			category = getLemmaStr(category);
 			clue = getLemmaStr(clue);
 			String result = queryIndex(category + " " + clue);
