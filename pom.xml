@@ -87,7 +87,7 @@
     </executions>
     <configuration>
       <!-- TODO: if your main class is called something else, change it here -->
-      <mainClass>edu.arizona.cs.QueryEngine</mainClass>
+      <mainClass>edu.arizona.cs.Indexer</mainClass>
       <!-- TODO: if your class takes command line arguments, change them here -->
       <arguments>
 
