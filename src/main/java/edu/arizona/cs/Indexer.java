@@ -213,7 +213,7 @@ public class Indexer {
 			float result = queryIndex(category + " " + clue, answer);
 			total += result;
 		}
-		System.out.println("MRR: " + total);
+		System.out.println("MRR: " + total / 100);
 	}
 	
 	private float measureMRR(ScoreDoc[] hits, IndexSearcher searcher, String answer) throws IOException {
