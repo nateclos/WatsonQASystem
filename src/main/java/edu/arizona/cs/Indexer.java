@@ -210,6 +210,5 @@ private float measureMRR(ScoreDoc[] hits, IndexSearcher searcher, String answer)
 		Indexer i = new Indexer(currDir);
 		i.testIndex();
 		i.index.close();
-		edu.stanford.nlp.simple.Document d = new edu.stanford.nlp.simple.Document("test");
 	}
 }
